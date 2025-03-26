@@ -1,3 +1,5 @@
+import copy
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -18,6 +20,7 @@ class UAVPlacementEnv(gym.Env):
         self.max_distance = D_MAX
         self.step_count = 0
         self.max_steps = 25
+        self.initial_coverage_count = 0
 
         # Bounds for UAV movement (must match GA bounds)
         self.uav_bounds = UAV_BOUNDS
@@ -53,6 +56,7 @@ class UAVPlacementEnv(gym.Env):
         self.uav_positions = get_UAV_starting_positions(self.user_positions, self.num_users, self.num_base_stations).reshape(self.num_base_stations, 3)
         self.step_count = 0
         self.prev_coverage = self._compute_coverage()
+        self.initial_coverage_count = np.sum(self.prev_coverage[:self.num_users])
         return self._get_observation(), {}
 
     def _generate_users(self, dist_type):
@@ -129,14 +133,15 @@ class UAVPlacementEnv(gym.Env):
         movement_cost = np.sum(np.linalg.norm(self.uav_positions[:self.num_base_stations] - prev_positions, axis=1))
 
         alpha = 1.0  # Weight for coverage change.
-        beta = 1.0  # Weight for movement penalty.
+        beta = 0.1  # Weight for movement penalty.
 
-        reward = alpha * (new_covered_count - prev_covered_count) - beta * movement_cost
+
+        reward = alpha * (new_covered_count - self.initial_coverage_count) - beta * movement_cost
         self.prev_coverage = new_coverage.copy()
 
         self.step_count += 1
-        terminated = self.step_count >= self.max_steps
-        truncated = False
+        terminated = new_covered_count == self.num_users
+        truncated = self.step_count >= self.max_steps
 
         return self._get_observation(), reward, terminated, truncated, {}
 
