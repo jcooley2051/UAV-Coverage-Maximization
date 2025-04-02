@@ -6,9 +6,9 @@ from stable_baselines3.common.callbacks import EvalCallback
 from environment import UAVPlacementEnv  # Replace with actual path if needed
 
 # --- Configuration ---
-TIMESTEPS = 100_000
+TIMESTEPS = 400_000
 LOG_DIR = "./ppo_uav_logs/"
-MODEL_SAVE_PATH = os.path.join(LOG_DIR, "ppo_uav_model_new_reward_updated_again")
+MODEL_SAVE_PATH = os.path.join(LOG_DIR, "sac_first_test")
 
 # --- Create environment ---
 env = UAVPlacementEnv()

@@ -19,8 +19,9 @@ class UAVPlacementEnv(gym.Env):
         self.beam_halfwidth = BEAM_ANGLE
         self.max_distance = D_MAX
         self.step_count = 0
-        self.max_steps = 25
+        self.max_steps = 100
         self.initial_coverage_count = 0
+        self.prev_coverage = []
 
         # Bounds for UAV movement (must match GA bounds)
         self.uav_bounds = UAV_BOUNDS
@@ -57,6 +58,13 @@ class UAVPlacementEnv(gym.Env):
         self.step_count = 0
         self.prev_coverage = self._compute_coverage()
         self.initial_coverage_count = np.sum(self.prev_coverage[:self.num_users])
+
+        self.initial_coverage_count = np.sum(self.prev_coverage[:self.num_users])
+
+        # Skip episodes where GA gives full coverage already
+        if self.initial_coverage_count >= 0.90 * self.num_users:
+            return self.reset(seed=seed, options=options)
+
         return self._get_observation(), {}
 
     def _generate_users(self, dist_type):
@@ -115,6 +123,7 @@ class UAVPlacementEnv(gym.Env):
 
         return covered
 
+    """
     def step(self, action):
         deltas = action.reshape(self.max_uavs, 3)
         scaled_deltas = deltas * MAX_MOVE_DELTA  # or whatever your real-world range is
@@ -132,15 +141,140 @@ class UAVPlacementEnv(gym.Env):
 
         movement_cost = np.sum(np.linalg.norm(self.uav_positions[:self.num_base_stations] - prev_positions, axis=1))
 
+        movement_cost /= self.num_base_stations
+        movement_cost /= 5.19
+
         alpha = 1.0  # Weight for coverage change.
-        beta = 0.1  # Weight for movement penalty.
+        beta = 0.5  # Weight for movement penalty.
 
+        coverage_ratio = new_covered_count / self.num_users
+        prev_coverage_ratio = prev_covered_count / self.num_users
 
-        reward = alpha * (new_covered_count - self.initial_coverage_count) - beta * movement_cost
+        coverage_delta = coverage_ratio - prev_coverage_ratio
+        if coverage_delta < 0:
+            reward = 5.0 * coverage_delta - beta * movement_cost  # Stronger penalty
+        else:
+            reward = alpha * coverage_delta
+        if new_covered_count == self.num_users:
+            reward += 1.0
         self.prev_coverage = new_coverage.copy()
+        print(
+            f"Step {self.step_count} | Coverage delta: {coverage_delta:.3f} | Movement cost: {movement_cost:.3f} | Reward: {reward:.3f}")
 
         self.step_count += 1
-        terminated = new_covered_count == self.num_users
+        terminated = bool(new_covered_count == self.num_users)
+        # terminated = False
+        truncated = self.step_count >= self.max_steps
+
+        return self._get_observation(), reward, terminated, truncated, {}
+    """
+
+    # def step(self, action):
+    #     deltas = action.reshape(self.max_uavs, 3)
+    #     scaled_deltas = deltas * MAX_MOVE_DELTA
+    #
+    #     prev_positions = self.uav_positions[:self.num_base_stations].copy()
+    #
+    #     # Apply movement and clamp within bounds
+    #     self.uav_positions[:self.num_base_stations] += scaled_deltas[:self.num_base_stations]
+    #     self.uav_positions[:self.num_base_stations] = np.clip(
+    #         self.uav_positions[:self.num_base_stations], self.uav_bounds[0], self.uav_bounds[1]
+    #     )
+    #
+    #     # Compute new coverage
+    #     new_coverage = self._compute_coverage()
+    #     new_covered_count = np.sum(new_coverage[:self.num_users])
+    #     prev_covered_count = np.sum(self.prev_coverage[:self.num_users])
+    #
+    #     # Calculate movement cost
+    #     movement_cost = np.sum(np.linalg.norm(self.uav_positions[:self.num_base_stations] - prev_positions, axis=1))
+    #     movement_cost /= self.num_base_stations
+    #     movement_cost /= 5.19  # Normalize as before
+    #
+    #     # === Reward Calculation ===
+    #     coverage_ratio = new_covered_count / self.num_users
+    #     prev_ratio = prev_covered_count / self.num_users
+    #     coverage_delta = coverage_ratio - prev_ratio
+    #     average_delta = np.mean(np.linalg.norm(scaled_deltas, axis=1))
+    #
+    #     improvement_threshold = 0.01  # Require 1% improvement to reward change
+    #     idle_threshold = 0.1  # Consider "idle" if UAVs barely moved
+    #
+    #     # Reward logic
+    #     if coverage_delta > improvement_threshold:
+    #         reward = 10.0 * coverage_delta - 0.3 * movement_cost
+    #     elif coverage_delta < 0:
+    #         reward = 5.0 * coverage_delta - 0.3 * movement_cost  # stronger penalty
+    #     else:
+    #         reward = -0.1 * movement_cost  # discourage movement with no benefit
+    #
+    #         if average_delta < idle_threshold:
+    #             reward += 0.1  # small bonus for staying still when nothing improved
+    #
+    #     # Optional bonus for 100% coverage
+    #     if new_covered_count == self.num_users:
+    #         reward += 2.0
+    #
+    #     self.prev_coverage = new_coverage.copy()
+    #     self.step_count += 1
+    #
+    #     # Never terminate early (optional: you can add it back if needed)
+    #     terminated = False
+    #     truncated = self.step_count >= self.max_steps
+    #
+    #     return self._get_observation(), reward, terminated, truncated, {}
+
+    def step(self, action):
+        deltas = action.reshape(self.max_uavs, 3)
+        scaled_deltas = deltas * MAX_MOVE_DELTA
+
+        prev_positions = self.uav_positions[:self.num_base_stations].copy()
+
+        # Apply movement and clamp within bounds
+        self.uav_positions[:self.num_base_stations] += scaled_deltas[:self.num_base_stations]
+        self.uav_positions[:self.num_base_stations] = np.clip(
+            self.uav_positions[:self.num_base_stations], self.uav_bounds[0], self.uav_bounds[1]
+        )
+
+        # Compute new coverage
+        new_coverage = self._compute_coverage()
+        new_covered_count = np.sum(new_coverage[:self.num_users])
+        prev_covered_count = np.sum(self.prev_coverage[:self.num_users])
+
+        # Calculate movement cost
+        movement_cost = np.sum(np.linalg.norm(self.uav_positions[:self.num_base_stations] - prev_positions, axis=1))
+        movement_cost /= self.num_base_stations
+        movement_cost /= 5.19  # Normalize as before
+
+        # === Reward Calculation ===
+        coverage_ratio = new_covered_count / self.num_users
+        prev_ratio = prev_covered_count / self.num_users
+        coverage_delta = coverage_ratio - prev_ratio
+        average_delta = np.mean(np.linalg.norm(scaled_deltas, axis=1))
+
+        improvement_threshold = 0.01  # Require 1% improvement to reward change
+        idle_threshold = 0.1  # Consider "idle" if UAVs barely moved
+
+        # Reward logic
+        if coverage_delta > improvement_threshold:
+            reward = 10.0 * coverage_delta - 0.3 * movement_cost
+        elif coverage_delta < 0:
+            reward = 5.0 * coverage_delta - 0.3 * movement_cost  # stronger penalty
+        else:
+            reward = -0.1 * movement_cost  # discourage movement with no benefit
+
+            if average_delta < idle_threshold:
+                reward += 0.1  # small bonus for staying still when nothing improved
+
+        # Optional bonus for 100% coverage
+        if new_covered_count == self.num_users:
+            reward += 2.0
+
+        self.prev_coverage = new_coverage.copy()
+        self.step_count += 1
+
+        # Never terminate early (optional: you can add it back if needed)
+        terminated = False
         truncated = self.step_count >= self.max_steps
 
         return self._get_observation(), reward, terminated, truncated, {}

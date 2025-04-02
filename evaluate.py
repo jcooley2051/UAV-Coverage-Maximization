@@ -5,7 +5,7 @@ from environment import UAVPlacementEnv
 from config import SCALE_FACTOR
 
 # --- Config ---
-MODEL_PATH = "./ppo_uav_logs/ppo_uav_model_new_reward_updated_again"
+MODEL_PATH = "./ppo_uav_logs/ppo_uav_model_higher_movement_penalty_again"
 
 # --- Load environment and model ---
 env = UAVPlacementEnv()

@@ -1,10 +1,10 @@
 import numpy as np
 
 # Problem Parameters
-MAX_USERS = 100
-MAX_UAVS = 6
-D_MAX = 400
-BEAM_ANGLE = np.radians(60)  # half-angle in radians
+MAX_USERS = 30
+MAX_UAVS = 2
+D_MAX = 350
+BEAM_ANGLE = np.radians(45)  # half-angle in radians
 
 # Bounds
 USER_BOUNDS = np.array([[0, 0, 0], [1000, 1000, 300]])
@@ -17,7 +17,7 @@ GA_GENERATIONS = 250
 GA_POP_SIZE = 30
 
 # DRL Parameters
-MAX_MOVE_DELTA = 25.0
+MAX_MOVE_DELTA = 5
 
 #normalization scale factor for environment
 SCALE_FACTOR = 1000

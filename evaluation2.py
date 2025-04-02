@@ -5,8 +5,8 @@ from environment import UAVPlacementEnv
 from config import SCALE_FACTOR
 
 # --- Config ---
-MODEL_PATH = "./ppo_uav_logs/ppo_uav_model_new_reward_updated_again"
-NUM_EPISODES = 10  # Set the number of episodes to run
+MODEL_PATH = "./ppo_uav_logs/ppo_uav_model_higher_movement_penalty_again_modified_more_again"
+NUM_EPISODES = 100  # Set the number of episodes to run
 
 # --- Load environment and model ---
 env = UAVPlacementEnv()
